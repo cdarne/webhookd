@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"github.com/cdarne/webhookd/internal/subprocess"
 	"github.com/cdarne/webhookd/pkg/signature"
 	"io"
 	"io/ioutil"
@@ -18,11 +19,11 @@ type Server struct {
 	logger *log.Logger
 }
 
-func New(listenAddr, sharedSecret string, logger *log.Logger) *Server {
+func New(listenAddr, sharedSecret string, logger *log.Logger, command string, commandArgs []string) *Server {
 	return &Server{
 		http: &http.Server{
 			Addr:         listenAddr,
-			Handler:      handler(sharedSecret, logger),
+			Handler:      handler(sharedSecret, logger, command, commandArgs),
 			ErrorLog:     logger,
 			ReadTimeout:  5 * time.Second,
 			WriteTimeout: 5 * time.Second,
@@ -84,7 +85,7 @@ func setupTLS(certFile, keyFile, CAFile string) (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
-func handler(sharedSecret string, logger *log.Logger) http.Handler {
+func handler(sharedSecret string, logger *log.Logger, command string, commandArgs []string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 
@@ -96,9 +97,10 @@ func handler(sharedSecret string, logger *log.Logger) http.Handler {
 		}
 
 		if signature.ValidSignature(body, sharedSecret, hmacSignature) {
-			logger.Println("Valid webhook signature :)")
+			logger.Printf("Processing webhook")
+			go subprocess.Run(r, command, commandArgs, body, logger)
 		} else {
-			logger.Printf("Invalid webhook signature :(")
+			logger.Printf("Invalid webhook received")
 		}
 	})
 }

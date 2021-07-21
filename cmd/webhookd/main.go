@@ -9,28 +9,36 @@ import (
 	"os/signal"
 )
 
-var caCert = flag.String("ca-cert", "", "CA certificate path.")
-var serverCert = flag.String("server-cert", "", "Server certificate path.")
-var serverKey = flag.String("server-key", "", "Server key path.")
-var listenAddr = flag.String("listen-addr", "127.0.0.1:8080", "Listen address and port.")
-var sharedSecret = flag.String("shared-secret", "", "Shared secret used to verify HMAC signatures.")
-
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
+	listenAddr := flag.String("listen-addr", "127.0.0.1:8080", "Listen address and port.")
+	sharedSecret := flag.String("shared-secret", "", "Shared secret used to verify HMAC signatures.")
+
+	caCert := flag.String("ca-cert", "", "CA certificate path.")
+	serverCert := flag.String("server-cert", "", "Server certificate path.")
+	serverKey := flag.String("server-key", "", "Server key path.")
+
 	flag.Parse()
 
 	logger := log.New(os.Stdout, "webhookd: ", log.LstdFlags)
+
+	args := flag.Args()
+	if len(args) < 1 {
+		logger.Fatalln("Missing command argument. Aborting...")
+	}
+	command := args[0]
+	commandArgs := args[1:]
+
 	logger.Println("Server is starting...")
-	server := server.New(*listenAddr, *sharedSecret, logger)
-	if useSSL() {
+	server := server.New(*listenAddr, *sharedSecret, logger, command, commandArgs)
+	if useSSL(*serverCert, *serverKey, *caCert) {
 		err := server.SetupTLS(*serverCert, *serverKey, *caCert)
 		if err != nil {
 			logger.Fatalln(err)
 		}
 	}
-
 	server.Start()
 	logger.Println("Server is ready to handle requests at", *listenAddr)
 
@@ -45,6 +53,6 @@ func main() {
 	logger.Println("Server stopped")
 }
 
-func useSSL() bool {
-	return *caCert != "" && *serverCert != "" && *serverKey != ""
+func useSSL(serverCert, serverKey, caCert string) bool {
+	return serverCert != "" && serverKey != "" && caCert != ""
 }
