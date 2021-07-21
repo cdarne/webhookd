@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"github.com/cdarne/webhookd/pkg/signature"
 	"io"
@@ -9,19 +10,19 @@ import (
 	"net/http"
 )
 
-func VerifySignature(sharedSecret string, next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func VerifySignature(sharedSecret string, next handlerWithError) handlerWithError {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		hmacSignature := r.Header.Get("X-Shopify-Hmac-Sha256")
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Error while reading the request body: %s", err), http.StatusBadRequest)
-			return
+			return fmt.Errorf("error while reading the request body: %s", err)
 		}
 		if signature.ValidSignature(body, sharedSecret, hmacSignature) {
+			// "rewind" the body to be readable by `next`
 			r.Body = ioutil.NopCloser(bytes.NewReader(body))
-			next.ServeHTTP(w, r)
+			return next(w, r)
 		} else {
-			http.Error(w, "Invalid HMAC signature", http.StatusUnauthorized)
+			return NewHTTPError(errors.New("invalid HMAC signature"), http.StatusUnauthorized)
 		}
-	})
+	}
 }

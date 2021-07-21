@@ -81,3 +81,46 @@ func setupTLS(certFile, keyFile, CAFile string) (*tls.Config, error) {
 	tlsConfig.ClientCAs = ca
 	return tlsConfig, nil
 }
+
+// ClientError is an error whose details to be shared with client.
+type ClientError interface {
+	Error() string
+	Status() int
+}
+
+// HTTPError implements ClientError interface.
+type HTTPError struct {
+	error
+	StatusCode int
+}
+
+func (e *HTTPError) Status() int {
+	return e.StatusCode
+}
+
+func NewHTTPError(err error, statusCode int) *HTTPError {
+	return &HTTPError{
+		error:      err,
+		StatusCode: statusCode,
+	}
+}
+
+type handlerWithError func(http.ResponseWriter, *http.Request) error
+
+func (h handlerWithError) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	err := h(w, r)
+	if err == nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	var status int
+	clientError, ok := err.(ClientError)
+	if !ok {
+		status = http.StatusInternalServerError
+	} else {
+		status = clientError.Status()
+	}
+	w.WriteHeader(status)
+	w.Write([]byte(err.Error()))
+}

@@ -13,10 +13,7 @@ var newlineToSpace = strings.NewReplacer("\r", " ", "\n", " ")
 
 func Run(req *http.Request, commandName string, commandArgs []string, body []byte) {
 	env := SetupEnv(req)
-	err := runCmd(commandName, commandArgs, body, env)
-	if err != nil {
-		//logger.Println("Error while running the command: ", err)
-	}
+	_ = runCmd(commandName, commandArgs, body, env)
 }
 
 func runCmd(commandName string, commandArgs []string, body []byte, env []string) error {
