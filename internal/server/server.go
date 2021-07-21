@@ -5,9 +5,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"github.com/cdarne/webhookd/internal/subprocess"
-	"github.com/cdarne/webhookd/pkg/signature"
-	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -19,11 +16,11 @@ type Server struct {
 	logger *log.Logger
 }
 
-func New(listenAddr, sharedSecret string, logger *log.Logger, command string, commandArgs []string) *Server {
+func New(listenAddr string, handler http.Handler, logger *log.Logger) *Server {
 	return &Server{
 		http: &http.Server{
 			Addr:         listenAddr,
-			Handler:      handler(sharedSecret, logger, command, commandArgs),
+			Handler:      handler,
 			ErrorLog:     logger,
 			ReadTimeout:  5 * time.Second,
 			WriteTimeout: 5 * time.Second,
@@ -83,24 +80,4 @@ func setupTLS(certFile, keyFile, CAFile string) (*tls.Config, error) {
 	}
 	tlsConfig.ClientCAs = ca
 	return tlsConfig, nil
-}
-
-func handler(sharedSecret string, logger *log.Logger, command string, commandArgs []string) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-
-		hmacSignature := r.Header.Get("X-Shopify-Hmac-Sha256")
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			logger.Printf("Unable to read request body: %s\n", err)
-			return
-		}
-
-		if signature.ValidSignature(body, sharedSecret, hmacSignature) {
-			logger.Printf("Processing webhook")
-			go subprocess.Run(r, command, commandArgs, body, logger)
-		} else {
-			logger.Printf("Invalid webhook received")
-		}
-	})
 }

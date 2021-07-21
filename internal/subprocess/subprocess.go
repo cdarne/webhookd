@@ -3,7 +3,6 @@ package subprocess
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"net/http"
 	"os/exec"
 	"strings"
@@ -12,11 +11,11 @@ import (
 var dashToUnderscore = strings.NewReplacer("-", "_")
 var newlineToSpace = strings.NewReplacer("\r", " ", "\n", " ")
 
-func Run(req *http.Request, commandName string, commandArgs []string, body []byte, logger *log.Logger) {
+func Run(req *http.Request, commandName string, commandArgs []string, body []byte) {
 	env := SetupEnv(req)
 	err := runCmd(commandName, commandArgs, body, env)
 	if err != nil {
-		logger.Println("Error while running the command: ", err)
+		//logger.Println("Error while running the command: ", err)
 	}
 }
 

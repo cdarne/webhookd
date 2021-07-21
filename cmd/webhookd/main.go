@@ -32,7 +32,9 @@ func main() {
 	commandArgs := args[1:]
 
 	logger.Println("Server is starting...")
-	server := server.New(*listenAddr, *sharedSecret, logger, command, commandArgs)
+
+	handler := server.Logging(logger, server.VerifySignature(*sharedSecret, server.SpawnProcess(command, commandArgs)))
+	server := server.New(*listenAddr, handler, logger)
 	if useSSL(*serverCert, *serverKey, *caCert) {
 		err := server.SetupTLS(*serverCert, *serverKey, *caCert)
 		if err != nil {
