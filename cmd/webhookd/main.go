@@ -3,10 +3,13 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/cdarne/webhookd/internal/server"
 	"log"
 	"os"
 	"os/signal"
+	"runtime"
+
+	"github.com/cdarne/webhookd/internal/server"
+	"github.com/cdarne/webhookd/internal/subprocess"
 )
 
 func main() {
@@ -15,6 +18,9 @@ func main() {
 
 	listenAddr := flag.String("listen-addr", "127.0.0.1:8080", "Listen address and port.")
 	sharedSecret := flag.String("shared-secret", "", "Shared secret used to verify HMAC signatures.")
+
+	concurrency := flag.Int("concurrency", runtime.NumCPU(), "Number of program instances that are allowed to run concurrently.")
+	queueSize := flag.Int("queue-size", 1000, "The length of the queue of webhooks waiting to be processed.")
 
 	caCert := flag.String("ca-cert", "", "CA certificate path.")
 	serverCert := flag.String("server-cert", "", "Server certificate path.")
@@ -33,7 +39,10 @@ func main() {
 
 	logger.Println("Server is starting...")
 
-	handler := server.Logging(logger, server.VerifySignature(*sharedSecret, server.SpawnProcess(command, commandArgs)))
+	runner := subprocess.NewRunner(logger, *concurrency, *queueSize)
+	runner.Start()
+
+	handler := server.Logging(logger, server.VerifySignature(*sharedSecret, server.SpawnProcess(command, commandArgs, runner)))
 	server := server.New(*listenAddr, handler, logger)
 	if useSSL(*serverCert, *serverKey, *caCert) {
 		err := server.SetupTLS(*serverCert, *serverKey, *caCert)
@@ -52,6 +61,7 @@ func main() {
 	if err := server.Stop(); err != nil {
 		logger.Fatalf("Could not gracefully shutdown the server: %v\n", err)
 	}
+	runner.Stop()
 	logger.Println("Server stopped")
 }
 

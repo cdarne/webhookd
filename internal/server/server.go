@@ -98,7 +98,7 @@ func (e *HTTPError) Status() int {
 	return e.StatusCode
 }
 
-func NewHTTPError(err error, statusCode int) *HTTPError {
+func NewHTTPError(statusCode int, err error) *HTTPError {
 	return &HTTPError{
 		error:      err,
 		StatusCode: statusCode,

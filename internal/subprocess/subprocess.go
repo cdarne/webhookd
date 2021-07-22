@@ -11,19 +11,19 @@ import (
 var dashToUnderscore = strings.NewReplacer("-", "_")
 var newlineToSpace = strings.NewReplacer("\r", " ", "\n", " ")
 
-func Run(req *http.Request, commandName string, commandArgs []string, body []byte) {
-	env := SetupEnv(req)
-	_ = runCmd(commandName, commandArgs, body, env)
+func NewCommand(req *http.Request, commandName string, commandArgs []string, body []byte) *exec.Cmd {
+	env := setupEnv(req)
+	return newCmd(commandName, commandArgs, body, env)
 }
 
-func runCmd(commandName string, commandArgs []string, body []byte, env []string) error {
+func newCmd(commandName string, commandArgs []string, body []byte, env []string) *exec.Cmd {
 	cmd := exec.Command(commandName, commandArgs...)
 	cmd.Env = env
 	cmd.Stdin = bytes.NewReader(body)
-	return cmd.Run()
+	return cmd
 }
 
-func SetupEnv(req *http.Request) (env []string) {
+func setupEnv(req *http.Request) (env []string) {
 	for k, vals := range req.Header {
 		header := fmt.Sprintf("HTTP_%s", dashToUnderscore.Replace(k))
 		env = appendEnv(env, header, vals...)

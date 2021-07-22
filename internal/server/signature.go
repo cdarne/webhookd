@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/cdarne/webhookd/pkg/signature"
 	"io"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/cdarne/webhookd/pkg/signature"
 )
 
 func VerifySignature(sharedSecret string, next handlerWithError) handlerWithError {
@@ -22,7 +23,7 @@ func VerifySignature(sharedSecret string, next handlerWithError) handlerWithErro
 			r.Body = ioutil.NopCloser(bytes.NewReader(body))
 			return next(w, r)
 		} else {
-			return NewHTTPError(errors.New("invalid HMAC signature"), http.StatusUnauthorized)
+			return NewHTTPError(http.StatusUnauthorized, errors.New("invalid HMAC signature"))
 		}
 	}
 }
