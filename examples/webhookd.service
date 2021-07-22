@@ -1,0 +1,15 @@
+[Unit]
+Description=The Shopify's webhook daemon
+Documentation=https://github.com/cdarne/webhookd
+After=network.target
+
+[Service]
+Type=notify
+User=webhookd
+Group=webhookd
+ExecStart=/usr/bin/webhookd -shared-secret=1b048d8d091526e4bde16482c6763470 /usr/bin/webhook.sh
+Restart=on-failure
+KillSignal=SIGINT
+
+[Install]
+WantedBy=default.target
